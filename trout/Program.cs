@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace trout
 {
@@ -10,9 +7,22 @@ namespace trout
     {
         static void Main(string[] args)
         {
-            if (args.Length == 0)
+            string domain = GetCurrentDomain();
+            string username = string.Empty;
+            string password = string.Empty;
+
+            // Parse arguments for domain (-d), username (-u), and password (-p)
+            if (args.Length > 0)
             {
-                Console.WriteLine("No command provided. Usage: detect | exploit | cleanup");
+                // Check if user supplied domain, username, or password options
+                domain = GetArgumentValue(args, "-d") ?? domain;
+                username = GetArgumentValue(args, "-u") ?? string.Empty;
+                password = GetArgumentValue(args, "-p") ?? string.Empty;
+            }
+
+            if (args.Length == 0 || args[0].ToLower() == "help")
+            {
+                Console.WriteLine("Usage: detect | exploit | cleanup");
                 return;
             }
 
@@ -21,15 +31,15 @@ namespace trout
             switch (command)
             {
                 case "detect":
-                    HandleDetect();
+                    HandleDetect(domain, username, password);
                     break;
 
                 case "exploit":
-                    HandleExploit(args);
+                    HandleExploit(domain, username, password, args);
                     break;
 
                 case "cleanup":
-                    HandleCleanup(args);
+                    HandleCleanup(domain, username, password, args);
                     break;
 
                 default:
@@ -38,15 +48,35 @@ namespace trout
             }
         }
 
+        // Get the current domain
+        static string GetCurrentDomain()
+        {
+            string domain = Environment.UserDomainName;
+            Console.WriteLine($"Current domain: {domain}");
+            return domain;
+        }
+
+        // Get the value of a specific argument
+        static string GetArgumentValue(string[] args, string argument)
+        {
+            int index = Array.IndexOf(args, argument);
+            if (index >= 0 && index + 1 < args.Length)
+            {
+                return args[index + 1];
+            }
+            return null;
+        }
+
         // Handle detect command
-        static void HandleDetect()
+        static void HandleDetect(string domain, string username, string password)
         {
             Console.WriteLine("Running detection...");
+            Console.WriteLine($"Domain: {domain}, Username: {username}, Password: {password}");
             // Add detection logic here
         }
 
         // Handle exploit command
-        static void HandleExploit(string[] args)
+        static void HandleExploit(string domain, string username, string password, string[] args)
         {
             Console.WriteLine("Running exploit...");
 
@@ -58,11 +88,9 @@ namespace trout
                 {
                     case "option1":
                         Console.WriteLine("Exploit option 1 selected.");
-                        // Add exploit option 1 logic
                         break;
                     case "option2":
                         Console.WriteLine("Exploit option 2 selected.");
-                        // Add exploit option 2 logic
                         break;
                     default:
                         Console.WriteLine("Invalid exploit option. Available options: option1, option2.");
@@ -73,10 +101,13 @@ namespace trout
             {
                 Console.WriteLine("No exploit option provided. Usage: exploit option1 | option2");
             }
+
+            Console.WriteLine($"Domain: {domain}, Username: {username}, Password: {password}");
+            // Add exploit logic here
         }
 
         // Handle cleanup command
-        static void HandleCleanup(string[] args)
+        static void HandleCleanup(string domain, string username, string password, string[] args)
         {
             Console.WriteLine("Running cleanup...");
 
@@ -88,11 +119,9 @@ namespace trout
                 {
                     case "option1":
                         Console.WriteLine("Cleanup option 1 selected.");
-                        // Add cleanup option 1 logic
                         break;
                     case "option2":
                         Console.WriteLine("Cleanup option 2 selected.");
-                        // Add cleanup option 2 logic
                         break;
                     default:
                         Console.WriteLine("Invalid cleanup option. Available options: option1, option2.");
@@ -103,6 +132,9 @@ namespace trout
             {
                 Console.WriteLine("No cleanup option provided. Usage: cleanup option1 | option2");
             }
+
+            Console.WriteLine($"Domain: {domain}, Username: {username}, Password: {password}");
+            // Add cleanup logic here
         }
     }
 }
