@@ -29,7 +29,7 @@ namespace trout.factories
                     int version = getVersion(gpoObject);
 
                     // Return a new GPO object
-                    return new GPO(gpoGuid, displayName, SDDL, version);
+                    return new GPO(gpoGuid, gpoDir, displayName, SDDL, version);
                 }
                 else
                 {

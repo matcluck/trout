@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using trout.factories;
@@ -12,14 +13,37 @@ namespace trout
     // Controller class for Detect module
     class Detect
     {
-        public static bool invoke(string domain) {
+        public static bool invoke(NetworkCredential credentials) {
+            string domain = credentials.Domain;
             string sysvolPath = $@"\\{domain}\SYSVOL\{domain}\Policies";
             GPO[] gpos = GetGPOsFromSysvol(sysvolPath, domain);
+            List<GPO> exploitable = new List<GPO>();
 
             foreach (GPO gpo in gpos)
             {
-                Console.WriteLine(gpo.ToString());
+                Console.WriteLine($"\nProcessing: {gpo.ToString()}");
+                gpo.checkGPOStorePrincipals(credentials);
+                gpo.checkGPOObjectPrincipals(credentials);
+                gpo.checkSecurityFilterTargetPrincipals();
+                Console.WriteLine($"Security Filter Target Principals: {string.Join(", ", gpo.securityFilterTargetPrincipals)}");
+                Console.WriteLine($"Modify GPO Store Principals: {string.Join(", ", gpo.modifyGPOStorePrincipals)}");
+                Console.WriteLine($"Modify GPO Object Principals: {string.Join(", ", gpo.modifyGPOObjectPrincipals)}");
+                Console.WriteLine($"Running context ({credentials.Domain}\\{credentials.UserName}) can modify backing store: {gpo.backingStoreModifiable}");
+                Console.WriteLine($"Running context ({credentials.Domain}\\{credentials.UserName}) can modify AD object: {gpo.adObjectModifiable}");
+
+                if (gpo.backingStoreModifiable && gpo.adObjectModifiable)
+                {
+                    exploitable.Add( gpo );
+                }
             }
+
+            foreach (GPO gpo in exploitable)
+            {
+                Console.WriteLine($"\n!!!!! {gpo.ToString()} is exploitable with {gpo.securityFilterTargetPrincipals.Count} targets!!!!!");
+            }
+
+           
+
             return true;
         
         }

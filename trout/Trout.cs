@@ -73,13 +73,25 @@ namespace trout
         static void HandleDetect(string domain, string username, string password)
         {
             Console.WriteLine("Running detection...");
-            Console.WriteLine($"Domain: {domain}, Username: {username}, Password: {password}");
-            NetworkCredential credentials = new NetworkCredential(username, password, domain);
+
+            NetworkCredential credentials;
+
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(domain))
+            {
+                credentials = CredentialCache.DefaultNetworkCredentials; // Use current Windows user
+            }
+            else
+            {
+                credentials = new NetworkCredential(username, password, domain);
+            }
+
+            Console.WriteLine($"Domain: {credentials.Domain}, Username: {credentials.UserName}");
+
 
             // Impersonate the user with the provided credentials
             using (WindowsImpersonationContext impersonationContext = Impersonation.ImpersonateUser(credentials))
             {
-                Detect.invoke(domain);
+                Detect.invoke(credentials);
             }
         }
 

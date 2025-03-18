@@ -51,6 +51,7 @@
     <Compile Include="modules\Exploit.cs" />
     <Compile Include="Trout.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="util\PermissionsUtils.cs" />
     <Compile Include="util\Impersonation.cs" />
     <Compile Include="util\StringUtils.cs" />
   </ItemGroup>
