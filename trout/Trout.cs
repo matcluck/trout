@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
+using System.Security.Principal;
+using trout.util;
 
 namespace trout
 {
@@ -52,7 +55,6 @@ namespace trout
         static string GetCurrentDomain()
         {
             string domain = Environment.UserDomainName;
-            Console.WriteLine($"Current domain: {domain}");
             return domain;
         }
 
@@ -72,7 +74,13 @@ namespace trout
         {
             Console.WriteLine("Running detection...");
             Console.WriteLine($"Domain: {domain}, Username: {username}, Password: {password}");
-            // Add detection logic here
+            NetworkCredential credentials = new NetworkCredential(username, password, domain);
+
+            // Impersonate the user with the provided credentials
+            using (WindowsImpersonationContext impersonationContext = Impersonation.ImpersonateUser(credentials))
+            {
+                Detect.invoke(domain);
+            }
         }
 
         // Handle exploit command
