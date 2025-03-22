@@ -4,6 +4,7 @@ using System.DirectoryServices.ActiveDirectory;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using trout.factories;
@@ -150,8 +151,9 @@ namespace trout
 
 
                 }
-                Console.WriteLine($"Authenticated Users principal can modify backing store: {gpo.backingStoreModifiable}");
-                Console.WriteLine($"Authenticated Users principal can modify AD object: {gpo.adObjectModifiable}");
+                string identity = string.IsNullOrEmpty(credentials.UserName) ? WindowsIdentity.GetCurrent().Name : credentials.UserName;
+                Console.WriteLine($"Current security principal ({identity}) can modify backing store: {gpo.backingStoreModifiable}");
+                Console.WriteLine($"Current security principal ({identity}) can modify AD object: {gpo.adObjectModifiable}");
 
                 // We need all three primitives to be able to exploit
                 if (gpo.backingStoreModifiable && gpo.adObjectModifiable && gpo.linkedToAtleastOneOU)
