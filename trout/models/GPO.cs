@@ -84,10 +84,6 @@ namespace trout.models
                 this.addModifyGPOObject(principal);
             }
 
-            if (writePermissionsInfo.SecurityContextHasWrite)
-            {
-                this.adObjectModifiable = true;
-            }
         }
 
         public void checkGPOStorePrincipals(NetworkCredential credentials)
@@ -97,11 +93,6 @@ namespace trout.models
             foreach(string principal in writePermissionsInfo.UsersWithWriteAccess)
             {
                 this.addModifyGPOStore(principal);
-            }
-
-            if (writePermissionsInfo.SecurityContextHasWrite)
-            {
-                this.backingStoreModifiable = true;
             }
         }
 

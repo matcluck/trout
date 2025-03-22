@@ -152,11 +152,39 @@ namespace trout
 
                 }
                 string identity = string.IsNullOrEmpty(credentials.UserName) ? WindowsIdentity.GetCurrent().Name : credentials.UserName;
-                Console.WriteLine($"Current security principal ({identity}) can modify backing store: {gpo.backingStoreModifiable}");
-                Console.WriteLine($"Current security principal ({identity}) can modify AD object: {gpo.adObjectModifiable}");
+
+                bool backingStoreModifiable = false;
+                bool adObjectModifiable = false;
+                string[] checkIdentities = { "Authenticated Users", "Everyone" };
+
+                foreach (SecurityPrincipal principal in gpo.modifyGPOStorePrincipals)
+                {
+
+                    foreach (string checkIdentity in checkIdentities)
+                    {
+                        if (principal.name.Contains(checkIdentity))
+                        {
+                            backingStoreModifiable = true;
+                            Console.WriteLine($"{checkIdentity} identity can modify the GPOs backing store!");
+                        }
+                        
+                    }
+                }
+
+                foreach (SecurityPrincipal principal in gpo.modifyGPOObjectPrincipals)
+                {
+                    foreach (string checkIdentity in checkIdentities)
+                    {
+                        if (principal.name.Contains(checkIdentity))
+                        {
+                            adObjectModifiable = true;
+                            Console.WriteLine($"{checkIdentity} identity can modify the GPOs AD object!");
+                        }
+                    }
+                }
 
                 // We need all three primitives to be able to exploit
-                if (gpo.backingStoreModifiable && gpo.adObjectModifiable && gpo.linkedToAtleastOneOU)
+                if (backingStoreModifiable && adObjectModifiable && gpo.linkedToAtleastOneOU)
                 {
                     exploitableGPOs.Add(new GPOAndTargets(gpo, exploitableTargets, exploitableButUntargeted));
                 }

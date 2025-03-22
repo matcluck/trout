@@ -22,7 +22,6 @@ namespace trout.util
         {
             public string Path { get; set; }
             public List<string> UsersWithWriteAccess { get; set; } = new List<string>();
-            public bool SecurityContextHasWrite { get; set; }
         }
 
         public static string DecodeAccessMask(int accessMask)
@@ -82,11 +81,6 @@ namespace trout.util
                 if ((ace.AccessMask & ((int)ActiveDirectoryRights.WriteProperty)) != 0)
                 {
                     info.UsersWithWriteAccess.Add(principal);
-
-                    if (principal.Equals("NT AUTHORITY\\Authenticated Users"))
-                    {
-                        info.SecurityContextHasWrite = true;
-                    }
                 }
                 
             }
@@ -117,10 +111,6 @@ namespace trout.util
                 if ((ace.AccessMask & ((int)ActiveDirectoryRights.WriteProperty)) != 0)
                 {
                     info.UsersWithWriteAccess.Add(principal);
-
-                    if (principal.Equals("NT AUTHORITY\\Authenticated Users")) { 
-                        info.SecurityContextHasWrite = true;
-                    }
                 }
             }
 
@@ -173,10 +163,6 @@ namespace trout.util
                         string principal = rule.IdentityReference.Value;
                         info.UsersWithWriteAccess.Add(principal);
 
-                        if (principal.Equals("NT AUTHORITY\\Authenticated Users"))
-                        {
-                            info.SecurityContextHasWrite = true;
-                        }
                     }
                 }
             }
