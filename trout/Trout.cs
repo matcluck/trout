@@ -6,8 +6,23 @@ using trout.util;
 
 namespace trout
 {
+    public static class AppSettings
+    {
+        // Static property to store the verbose flag
+        public static bool IsVerbose { get; set; } = false;
+    }
+
     class Trout
     {
+        
+
+        public static void printHelp()
+        {
+            Console.WriteLine("Invalid command. Usage: detect | exploit | cleanup");
+            Console.WriteLine("Options:");
+            Console.WriteLine("  -v, --verbose    Enable verbose output for more detailed information.");
+        }
+
         static void Main(string[] args)
         {
             string domain = GetCurrentDomain();
@@ -21,11 +36,12 @@ namespace trout
                 domain = GetArgumentValue(args, "-d") ?? domain;
                 username = GetArgumentValue(args, "-u") ?? string.Empty;
                 password = GetArgumentValue(args, "-p") ?? string.Empty;
+                AppSettings.IsVerbose = IsFlagPresent(args, "-v");
             }
 
             if (args.Length == 0 || args[0].ToLower() == "help")
             {
-                Console.WriteLine("Usage: detect | exploit | cleanup");
+                printHelp();
                 return;
             }
 
@@ -46,7 +62,7 @@ namespace trout
                     break;
 
                 default:
-                    Console.WriteLine("Invalid command. Usage: detect | exploit | cleanup");
+                    printHelp();
                     break;
             }
         }
@@ -68,6 +84,12 @@ namespace trout
             }
             return null;
         }
+
+        static bool IsFlagPresent(string[] args, string flag)
+        {
+                return Array.Exists(args, arg => arg.Equals(flag, StringComparison.OrdinalIgnoreCase));
+        }
+        
 
         // Handle detect command
         static void HandleDetect(string domain, string username, string password)

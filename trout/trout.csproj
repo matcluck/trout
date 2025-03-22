@@ -36,6 +36,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.DirectoryServices.AccountManagement" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -45,12 +46,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="factories\GPOFactory.cs" />
+    <Compile Include="models\Computer.cs" />
+    <Compile Include="models\ADObject.cs" />
+    <Compile Include="models\OU.cs" />
+    <Compile Include="models\SecurityPrincipal.cs" />
+    <Compile Include="models\User.cs" />
     <Compile Include="modules\Cleanup.cs" />
     <Compile Include="modules\Detect.cs" />
     <Compile Include="models\GPO.cs" />
     <Compile Include="modules\Exploit.cs" />
     <Compile Include="Trout.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="util\LDAPUtils.cs" />
     <Compile Include="util\PermissionsUtils.cs" />
     <Compile Include="util\Impersonation.cs" />
     <Compile Include="util\StringUtils.cs" />

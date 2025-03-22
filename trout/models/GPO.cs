@@ -19,27 +19,59 @@ namespace trout.models
         string filePath { get; set; }
         RawSecurityDescriptor sd { get; set; }
         int version { get; set; }
-        public List<string> modifyGPOObjectPrincipals { get; set; }
-        public List<string> modifyGPOStorePrincipals { get; set;  }
-        public List<string> securityFilterTargetPrincipals { get; set; }
+        public List<SecurityPrincipal> modifyGPOObjectPrincipals { get; set; }
+        public List<SecurityPrincipal> modifyGPOStorePrincipals { get; set;  }
+        public List<SecurityPrincipal> securityFilterTargetPrincipals { get; set; }
         public bool backingStoreModifiable { get; set; }
         public bool adObjectModifiable { get; set; }
+        public List<OU> linkedOUs {  get; set; }
+        public bool linkedToAtleastOneOU {  get; set; }
         
         override public string ToString()
         {
-            return $"{name}: {guid}";
+            return $"{name}";
         }
 
-        public GPO(string guid, string filepath, string name, RawSecurityDescriptor sd, int version)
+        public GPO(string guid, string filepath, string name, RawSecurityDescriptor sd, int version, List<OU> linkedOUs)
         {
             this.guid = guid;
             this.filePath = filepath;
             this.name = name;
             this.sd = sd;
             this.version = version;
-            this.modifyGPOObjectPrincipals = new List<string>();
-            this.modifyGPOStorePrincipals = new List<string>();
-            this.securityFilterTargetPrincipals = new List<string>();
+            this.modifyGPOObjectPrincipals = new List<SecurityPrincipal>();
+            this.modifyGPOStorePrincipals = new List<SecurityPrincipal>();
+            this.securityFilterTargetPrincipals = new List<SecurityPrincipal>();
+            this.linkedOUs = linkedOUs;
+        }
+
+        public List<User> getLinkedUsers()
+        {
+            List<User> results = new List<User>();
+
+            foreach (OU ou in linkedOUs)
+            {
+                results.AddRange(ou.childUsers);
+            }
+
+            return results;
+        }
+
+        public List<Computer> getLinkedComputers()
+        {
+            List<Computer> results = new List<Computer>();
+
+            foreach (OU ou in linkedOUs)
+            {
+                results.AddRange(ou.childComputers);
+            }
+
+            return results;
+        }
+
+        public void checkGPOLinks(NetworkCredential credentials)
+        {
+
         }
 
 
@@ -73,6 +105,11 @@ namespace trout.models
             }
         }
 
+        public void checkLinkedtoOUs()
+        {
+            this.linkedToAtleastOneOU = this.linkedOUs.Count > 0;
+        }
+
         public void checkSecurityFilterTargetPrincipals()
         {
             Guid APPLY_GROUP_POLICY_GUID = new Guid("edacfd8f-ffb3-11d1-b41d-00a0c968f939");
@@ -93,23 +130,23 @@ namespace trout.models
                         {
                             principal = sid.ToString();
                         }
-                        this.securityFilterTargetPrincipals.Add(principal);
+                        this.securityFilterTargetPrincipals.Add(new SecurityPrincipal(principal));
                     }
                 }
             }
         }
 
         public void addModifyGPOObject(string principal) {
-            this.modifyGPOObjectPrincipals.Add(principal);
+            this.modifyGPOObjectPrincipals.Add(new SecurityPrincipal(principal));
         }
 
         public void addModifyGPOStore(string principal) { 
-            this.modifyGPOStorePrincipals.Add(principal);
+            this.modifyGPOStorePrincipals.Add(new SecurityPrincipal(principal));
         }
 
         public void addSecurityFilterTarget(string principal)
         {
-            this.securityFilterTargetPrincipals.Add(principal);
+            this.securityFilterTargetPrincipals.Add(new SecurityPrincipal(principal));
         }
     }
 }

@@ -20,7 +20,7 @@ namespace trout.factories
             string gpoGuid = Path.GetFileName(gpoDir);
             
             if (checkGPTFile(gpoDir)) {
-                SearchResult gpoObject = GetADObject(gpoGuid, domain);
+                SearchResult gpoObject = LDAPUtils.GetADGPOObject(gpoGuid, domain);
 
                 if (gpoObject != null)
                 {
@@ -28,8 +28,10 @@ namespace trout.factories
                     RawSecurityDescriptor SDDL = getSDDL(gpoObject);
                     int version = getVersion(gpoObject);
 
+                    List<OU> linkedOUs = LDAPUtils.getLinkedOUs(gpoGuid, domain);
+
                     // Return a new GPO object
-                    return new GPO(gpoGuid, gpoDir, displayName, SDDL, version);
+                    return new GPO(gpoGuid, gpoDir, displayName, SDDL, version, linkedOUs);
                 }
                 else
                 {
@@ -43,9 +45,9 @@ namespace trout.factories
                 throw new ArgumentException("Invalid gpt.ini file.");
             }
             
-
-            
         }
+
+
         private static int getVersion(SearchResult gpoObject)
         {
             if (gpoObject.Properties["versionNumber"] != null && gpoObject.Properties["versionNumber"].Count > 0)
@@ -82,45 +84,7 @@ namespace trout.factories
             }
         }
 
-        private static SearchResult GetADObject(string gpoGuid, string domain)
-        {
-            try
-            {
-                string ldapDomainString = StringUtils.GetLDAPFormattedDomainName(domain);
-                // Connect to the Active Directory and search under the System\Policies container
-                using (DirectorySearcher searcher = new DirectorySearcher())
-                {
-                    // Set the base search location to the System\Policies container in the domain
-                    searcher.SearchRoot = new DirectoryEntry($"LDAP://{domain}/CN=Policies,CN=System,{ldapDomainString}");
 
-                    // Set the filter to search for a GPO with the given GUID
-                    string ldapFilter = $"(&(objectClass=groupPolicyContainer)(cn={gpoGuid}))";
-                    searcher.Filter = ldapFilter;
-
-                    // Load all properties
-                    searcher.PropertiesToLoad.Clear();
-
-                    searcher.SecurityMasks = SecurityMasks.Dacl | SecurityMasks.Owner | SecurityMasks.Group;
-
-                    // Perform the search
-                    SearchResult result = searcher.FindOne();
-
-                    if (result != null)
-                    {
-                        return result;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // Handle any errors that occur during the AD query
-                return null;
-            }
-        }
 
         private static bool checkGPTFile(string gpoDirectory)
         {

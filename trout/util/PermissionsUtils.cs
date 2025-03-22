@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.DirectoryServices;
+using System.DirectoryServices.AccountManagement;
+
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using trout.models;
 
 namespace trout.util
 {
@@ -188,5 +192,96 @@ namespace trout.util
             return info;
         
         }
+        private static bool IsUserThePrincipal(string userDistinguishedName, string principalName)
+        {
+            // For common principals (like "NT AUTHORITY\SYSTEM" or SID), check if the user is the same
+            return userDistinguishedName.Equals(principalName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool CheckPrincipal(string domain, ADObject obj, SecurityPrincipal principal)
+        {
+            if (principal.IsDomainPrincipal)
+            {
+                if (IsUserThePrincipal(obj.sid, principal.name))
+                {
+                    return true;
+                }
+                else
+                {
+                    return IsObjInDomainGroup(domain, obj, principal.name);
+                }
+            }
+            else
+            {
+                return IsInCommonPrincipal(obj, principal.name);
+            }
+        }
+
+        // Method 1: Check domain group membership recursively
+        private static bool IsObjInDomainGroup(string domain, ADObject obj, string groupIdentifier)
+        {
+            try
+            {
+                if (obj is Computer)
+                {
+                    string reDomainComputers = @"^S-1-5-21-\d{1,}-\d{1,}-\d{1,}-515";
+                    if (Regex.IsMatch(groupIdentifier, reDomainComputers)) { return true; } // If the groupIdentifier is the SID for the Domain Computers group, we can assume that the computer is in the Domain Computers group.
+                }
+                else if (obj is User)
+                {
+                    string reDomainUsers = @"^S-1-5-21-\d{1,}-\d{1,}-\d{1,}-513$";
+                    if (Regex.IsMatch(groupIdentifier, reDomainUsers)) { return true; } // If the groupIdentifier is the SID for the Domain Users group, we can assume that the user is in the Domain Users group.
+                }
+               
+
+                using (PrincipalContext context = new PrincipalContext(ContextType.Domain, domain))
+                {
+                    UserPrincipal user = UserPrincipal.FindByIdentity(context, IdentityType.DistinguishedName, obj.distinguishedName);
+
+                    if (user == null)
+                        return false;
+
+                    GroupPrincipal group = null;
+
+                    // Check if the group is specified as a GUID
+                    if (Guid.TryParse(groupIdentifier, out _))
+                        group = GroupPrincipal.FindByIdentity(context, IdentityType.Guid, groupIdentifier);
+                    else
+                        group = GroupPrincipal.FindByIdentity(context, IdentityType.DistinguishedName, groupIdentifier);
+
+                    if (group == null)
+                        return false;
+
+                    return IsMemberOfGroupRecursive(user, group);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking group membership: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static bool IsMemberOfGroupRecursive(Principal user, GroupPrincipal group)
+        {
+            if (group.Members.Contains(user))
+                return true;
+
+            foreach (Principal member in group.Members)
+            {
+                if (member is GroupPrincipal nestedGroup && IsMemberOfGroupRecursive(user, nestedGroup))
+                    return true;
+            }
+
+            return false;
+        }
+
+        // Method 2: Check if user belongs to a common principal
+        private static bool IsInCommonPrincipal(ADObject obj, string commonPrincipal)
+        {
+            return commonPrincipal.Contains("Authenticated Users")
+                   || commonPrincipal.Contains("Everyone");
+        }
+
     }
 }
