@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.DirectoryServices.ActiveDirectory;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -68,9 +69,19 @@ namespace trout
 
 
         public static bool invoke(NetworkCredential credentials) {
-            string domain = credentials.Domain;
-            string sysvolPath = $@"\\{domain}\SYSVOL\{domain}\Policies";
-            GPO[] gpos = GetGPOsFromSysvol(sysvolPath, domain);
+            string sysvolPath = $@"\\{credentials.Domain}\SYSVOL\{credentials.Domain}\Policies";
+
+            GPO[] gpos;
+
+            try
+            {
+                gpos = GetGPOsFromSysvol(sysvolPath, credentials.Domain);
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+            
 
 
             List<GPOAndTargets> exploitableGPOs = new List<GPOAndTargets>();
@@ -84,7 +95,7 @@ namespace trout
                 gpo.checkLinkedtoOUs();
 
                 string targetString = "";
-                foreach (SecurityPrincipal principal in gpo.securityFilterTargetPrincipals) { targetString = string.IsNullOrEmpty(targetString) ? principal.ToHumanString(domain) : $"{principal.ToHumanString(domain)},{targetString}"; }
+                foreach (SecurityPrincipal principal in gpo.securityFilterTargetPrincipals) { targetString = string.IsNullOrEmpty(targetString) ? principal.ToHumanString(credentials.Domain) : $"{principal.ToHumanString(credentials.Domain)},{targetString}"; }
 
                 Console.WriteLine($"Security Filter Target Principals: [{targetString}]");
                 //Console.WriteLine($"Modify GPO Store Principals: {string.Join(", ", gpo.modifyGPOStorePrincipals)}");
@@ -112,7 +123,7 @@ namespace trout
                             foreach (User linkedUser in linkedUsers)
                             {
                                 if (AppSettings.IsVerbose) { Console.WriteLine($"Checking {linkedUser.distinguishedName} against {sp.name}"); }
-                                if (PermissionsUtils.CheckPrincipal(domain, linkedUser, sp))
+                                if (PermissionsUtils.CheckPrincipal(credentials.Domain, linkedUser, sp))
                                 {
                                     if (AppSettings.IsVerbose) { Console.WriteLine($"{linkedUser.distinguishedName} matches {sp.name} (either matches or child member)"); }
                                     uniqueExploitableTargets.Add(linkedUser);
@@ -122,7 +133,7 @@ namespace trout
                             foreach (Computer linkedComputer in linkedComputers)
                             {
                                 if (AppSettings.IsVerbose) { Console.WriteLine($"Checking {linkedComputer.distinguishedName} against {sp.name}"); }
-                                if (PermissionsUtils.CheckPrincipal(domain, linkedComputer, sp))
+                                if (PermissionsUtils.CheckPrincipal(credentials.Domain, linkedComputer, sp))
                                 {
                                     if (AppSettings.IsVerbose) { Console.WriteLine($"{linkedComputer.distinguishedName} matches {sp.name} (either matches or child member)"); }
                                     uniqueExploitableTargets.Add(linkedComputer);
@@ -202,8 +213,7 @@ namespace trout
             }
             else
             {
-                Console.WriteLine("SYSVOL path does not exist. Ensure the path is correct.");
-                return new GPO[0]; // Return an empty array if SYSVOL path is not found
+                throw new ApplicationException($"SYSVOL path ({sysvolPath}) does not exist. Ensure the path is correct.");
             }
         }
     }

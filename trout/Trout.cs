@@ -1,4 +1,5 @@
 ﻿using System;
+using System.DirectoryServices.ActiveDirectory;
 using System.Linq;
 using System.Net;
 using System.Security.Principal;
@@ -25,7 +26,7 @@ namespace trout
 
         static void Main(string[] args)
         {
-            string domain = GetCurrentDomain();
+            string domain = string.Empty;
             string username = string.Empty;
             string password = string.Empty;
 
@@ -68,10 +69,13 @@ namespace trout
         }
 
         // Get the current domain
-        static string GetCurrentDomain()
+        static string getFQDN()
         {
-            string domain = Environment.UserDomainName;
-            return domain;
+            // Get the current domain information
+            Domain domain = Domain.GetComputerDomain();
+
+            // Get the FQDN (domain name) of the domain
+            return domain.Name;
         }
 
         // Get the value of a specific argument
@@ -98,23 +102,36 @@ namespace trout
 
             NetworkCredential credentials;
 
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(domain))
+            bool impersonate = false;
+
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 credentials = CredentialCache.DefaultNetworkCredentials; // Use current Windows user
+
+                
             }
             else
             {
                 credentials = new NetworkCredential(username, password, domain);
+                impersonate = true;
             }
 
-            Console.WriteLine($"Domain: {credentials.Domain}, Username: {credentials.UserName}");
+            credentials.Domain = string.IsNullOrEmpty(domain) ? getFQDN() : domain;
 
+            if (impersonate)
+            {
+                using (WindowsImpersonationContext impersonationContext = Impersonation.ImpersonateUser(credentials))
+                {
+                    Detect.invoke(credentials);
+                }
 
-            // Impersonate the user with the provided credentials
-            using (WindowsImpersonationContext impersonationContext = Impersonation.ImpersonateUser(credentials))
+            }
+            else
             {
                 Detect.invoke(credentials);
+
             }
+            
         }
 
         // Handle exploit command
