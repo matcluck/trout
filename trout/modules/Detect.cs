@@ -21,45 +21,60 @@ namespace trout
             public GPO gpo { get; set; }
             public List<ADObject> targets { get; set; } // ADObject's that the GPO currently targets
             public List<ADObject> notTargets { get; set; } // ADObject's that are not currently targets but are contained within linked OUs (can become targets through modification of the GPO's security filtering).
+            public List<String> backingStoreModifyPrincipals { get; set; }
+            public List<String> adObjectModifyPrincipals { get; set; }
 
             // Container class that associates a GPO with ADObject targets
-            public GPOAndTargets(GPO gpo, List<ADObject> targets, List<ADObject> notTargets)
+            public GPOAndTargets(GPO gpo, List<ADObject> targets, List<ADObject> notTargets, List<string> backingStoreModifyPrincipals, List<string> adObjectModifyPrincipals)
             {
                 this.gpo = gpo;
                 this.targets = targets;
                 this.notTargets = notTargets;
+                this.backingStoreModifyPrincipals = backingStoreModifyPrincipals;
+                this.adObjectModifyPrincipals = adObjectModifyPrincipals;
             }
 
+            // Method that returns the backing store modify principals in CSV form
+            public string getBackingStoreModifyPrincipalsString()
+            {
+                return StringUtils.GetLimitedListWithEllipsis(this.backingStoreModifyPrincipals);
+            }
 
-            // Function that returns a comma-separated string
+            // Method that returns the AD Object modify principals in CSV form
+            public string getADObjectModifyPrincipalsString()
+            {
+                return StringUtils.GetLimitedListWithEllipsis(this.adObjectModifyPrincipals);
+            }
+
+            // Method that returns a comma-separated string
             public string getTargetsString(string objectType)
             {
                 string result = "";
                 if (objectType == "computer")
                 {
-                    result = string.Join(",", this.targets.OfType<Computer>().ToList());
+                    result = StringUtils.GetLimitedListWithEllipsis(this.targets.OfType<Computer>().ToList());
 
                 }
                 else if (objectType == "user")
                 {
-                    result = string.Join(",", this.targets.OfType<User>().ToList());
+                    result = StringUtils.GetLimitedListWithEllipsis(this.targets.OfType<User>().ToList());
 
                 }
                 return result;
             }
 
-            // Function that returns a comma-separated string
+            // Method that returns a comma-separated string
             public string getNotTargetsString(string objectType)
             {
                 string result = "";
                 if (objectType == "computer")
                 {
-                    result = string.Join(",", this.notTargets.OfType<Computer>().ToList());
+                    result = StringUtils.GetLimitedListWithEllipsis(this.notTargets.OfType<Computer>().ToList());
 
                 }
                 else if (objectType == "user")
                 {
-                    result = string.Join(",", this.notTargets.OfType<User>().ToList());
+                    result = StringUtils.GetLimitedListWithEllipsis(this.notTargets.OfType<User>().ToList());
 
                 }
                 return result;
@@ -87,7 +102,7 @@ namespace trout
             // Process each GPO
             foreach (GPO gpo in gpos)
             {
-                Console.WriteLine($"\nProcessing: {gpo.ToString()}");
+                Console.WriteLine($"\nProcessing: {gpo.ToString()} ({gpo.guid})");
                 gpo.checkGPOStorePrincipals(credentials);
                 gpo.checkGPOObjectPrincipals(credentials);
                 gpo.checkSecurityFilterTargetPrincipals();
@@ -152,6 +167,9 @@ namespace trout
 
                 bool backingStoreModifiable = false;
                 bool adObjectModifiable = false;
+                List<string> backingStoreModifyPrincipals = new List<string>();
+                List<string> adObjectModifyPrincipals = new List<string>();
+
 
                 // A list of identities to check for write to the GPO object
                 List<string> checkIdentities = new List<string>();
@@ -174,6 +192,7 @@ namespace trout
                         if (principal.name.Contains(checkIdentity))
                         {
                             backingStoreModifiable = true;
+                            backingStoreModifyPrincipals.Add(checkIdentity);
                             Console.WriteLine($"{checkIdentity} identity can modify the GPOs backing store!");
                         }
                     }
@@ -185,6 +204,7 @@ namespace trout
                         if (PermissionsUtils.CheckPrincipal(credentials.Domain, queryObject, principal))
                         {
                             backingStoreModifiable = true;
+                            backingStoreModifyPrincipals.Add(userSuppliedPrincipal);
                             Console.WriteLine($"User supplied identity ({userSuppliedPrincipal}) can modify the GPOs backing store!");
                             userSuppliedCanModifyBackingStore = true;
                         }
@@ -202,6 +222,7 @@ namespace trout
                         if (principal.name.Contains(checkIdentity))
                         {
                             adObjectModifiable = true;
+                            adObjectModifyPrincipals.Add(checkIdentity);
                             Console.WriteLine($"{checkIdentity} identity can modify the GPOs AD object!");
                         }
                     }
@@ -213,6 +234,7 @@ namespace trout
                         if (PermissionsUtils.CheckPrincipal(credentials.Domain, queryObject, principal))
                         {
                             backingStoreModifiable = true;
+                            adObjectModifyPrincipals.Add(userSuppliedPrincipal);
                             Console.WriteLine($"User supplied identity ({userSuppliedPrincipal}) can modify the GPOs AD object!");
                             userSuppliedCanModifyADObject = true;
                         }
@@ -223,7 +245,7 @@ namespace trout
                 // If all three primitives are met (backing store modifiable, AD object modifiable, and linked to at least one OU), we can most likely exploit the GPO (if the linked OU/OUs contain at least one active user or computer object)
                 if (backingStoreModifiable && adObjectModifiable && gpo.linkedToAtleastOneOU)
                 {
-                    exploitableGPOs.Add(new GPOAndTargets(gpo, exploitableTargets, exploitableButUntargeted));
+                    exploitableGPOs.Add(new GPOAndTargets(gpo, exploitableTargets, exploitableButUntargeted, backingStoreModifyPrincipals, adObjectModifyPrincipals));
                 }
             }
 
@@ -237,27 +259,37 @@ namespace trout
 
 
                 Console.WriteLine(); // Used for formatting stdout
+                Console.WriteLine($"***** EXPLOITABLE GPO DETECTED: {gpoAndTargets.gpo.ToString()} ({gpoAndTargets.gpo.guid}) *****");
+
+                Console.WriteLine($"{gpoAndTargets.gpo.ToString()} backing store is modifiable by {gpoAndTargets.backingStoreModifyPrincipals.Count} controlled or user specified principals/: [{gpoAndTargets.getBackingStoreModifyPrincipalsString()}]");
+                Console.WriteLine($"{gpoAndTargets.gpo.ToString()} AD object is modifiable by {gpoAndTargets.adObjectModifyPrincipals.Count} controlled or user specified principal/s: [{gpoAndTargets.getADObjectModifyPrincipalsString()}]");
+
 
                 if (exploitableComputerTargets > 0)
                 {
-                    Console.WriteLine($"***** {gpoAndTargets.gpo.ToString()} is currently exploitable with {exploitableComputerTargets} computer target/s: [{gpoAndTargets.getTargetsString("computer")}] *****");
+                    Console.WriteLine($"{gpoAndTargets.gpo.ToString()} is currently exploitable with {exploitableComputerTargets} computer target/s: [{gpoAndTargets.getTargetsString("computer")}]");
                 }
                 if (exploitableUserTargets > 0) {
-                    Console.WriteLine($"***** {gpoAndTargets.gpo.ToString()} is currently exploitable with {exploitableUserTargets} user target/s: [{gpoAndTargets.getTargetsString("user")}] *****");
+                    Console.WriteLine($"{gpoAndTargets.gpo.ToString()} is currently exploitable with {exploitableUserTargets} user target/s: [{gpoAndTargets.getTargetsString("user")}]");
 
                 }
                 if (exploitableComputerNonTargets > 0)
                 {
-                    Console.WriteLine($"***** Security filtering for {gpoAndTargets.gpo.ToString()} can be modified, enabling up to {exploitableComputerNonTargets} additional exploitable computer target/s: [{gpoAndTargets.getNotTargetsString("computer")}] *****");
+                    Console.WriteLine($"Security filtering for {gpoAndTargets.gpo.ToString()} can be modified, enabling up to {exploitableComputerNonTargets} additional exploitable computer target/s: [{gpoAndTargets.getNotTargetsString("computer")}]");
                 }
                 if (exploitableUserNonTargets > 0) {
-                    Console.WriteLine($"***** Security filtering for {gpoAndTargets.gpo.ToString()} can be modified, enabling up to {exploitableUserNonTargets} additional exploitable user target/s: [{gpoAndTargets.getNotTargetsString("user")}] *****");
+                    Console.WriteLine($"Security filtering for {gpoAndTargets.gpo.ToString()} can be modified, enabling up to {exploitableUserNonTargets} additional exploitable user target/s: [{gpoAndTargets.getNotTargetsString("user")}]");
                 }
 
                 if (exploitableComputerTargets + exploitableUserTargets + exploitableComputerNonTargets + exploitableUserNonTargets == 0)
                 {
-                    Console.WriteLine($"***** {gpoAndTargets.gpo.ToString()} is not currently exploitable as the GPOs linked OUs contained no user or computer objects :( *****");
+                    Console.WriteLine($"{gpoAndTargets.gpo.ToString()} is not currently exploitable as the GPOs linked OUs contained no user or computer objects :(");
                 }
+
+                Console.WriteLine("Printing example exploitation commands (not yet implemented):");
+                Console.WriteLine($"trout exploit -t {gpoAndTargets.gpo.guid} -m computerAddLocalAdmin -p {{username-to-elevate}} | Action: Add local admin to all linked machines");
+                Console.WriteLine($"trout exploit -t {gpoAndTargets.gpo.guid} -m computerAddLocalAdmin -p {{username-to-elevate}} -tc {{computer1,computer2}} | Action: Add local admin to specific machines");
+
             }
 
             return true;

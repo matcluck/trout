@@ -201,7 +201,13 @@ namespace trout.util
                 }
                 else
                 {
-                    return IsObjInDomainGroup(domain, obj, principal.name);
+                    if (principal.getObjectClasses(domain).Contains("group")) {
+                        return IsObjInDomainGroup(domain, obj, principal.name);
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
             else

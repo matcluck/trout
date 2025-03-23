@@ -15,6 +15,17 @@ namespace trout.models
             IsDomainPrincipal = IsDomainPrincipalName(principalName);
         }
 
+        // Returns the objectClass of the specified SID by querying LDAP
+        public string[] getObjectClasses(string domain)
+        {
+            if (!IsDomainPrincipal)
+            {
+                return null;
+            }
+
+            return LDAPUtils.getObjectClassesFromSID(this.name, domain);
+        }
+
         private bool IsDomainPrincipalName(string principalName)
         {
             // Regex to check if the name is a SID (Domain Principal)

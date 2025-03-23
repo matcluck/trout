@@ -263,5 +263,39 @@ namespace trout.util
                 throw new InvalidOperationException("Failed to resolve sAMAccountName using LDAP.", ex);
             }
         }
+
+        public static string[] getObjectClassesFromSID(string sid, string domain)
+        {
+            try
+            {
+                string ldapDomainString = StringUtils.GetLDAPFormattedDomainName(domain);
+
+                // Set up the LDAP connection
+                DirectoryEntry entry = new DirectoryEntry(ldapDomainString);
+                DirectorySearcher searcher = new DirectorySearcher(entry);
+                searcher.SearchRoot = new DirectoryEntry($"LDAP://{domain}/{ldapDomainString}");
+
+                searcher.Filter = $"(objectSid={sid})";
+                searcher.PropertiesToLoad.Add("objectClass");
+
+                // Perform the search
+                SearchResult result = searcher.FindOne();
+
+                if (result != null)
+                {
+                    ADObject retObj = new ADObject();
+                    var objectClasses = result.Properties["objectClass"];
+                    return objectClasses.Cast<string>().ToArray();
+                }
+                else
+                {
+                    throw new Exception("SID not found in Active Directory.");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to resolve SID using LDAP.", ex);
+            }
+        }
     }
 }

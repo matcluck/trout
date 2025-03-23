@@ -14,7 +14,7 @@ namespace trout.models
 {
     public class GPO
     {
-        string guid { get; set; }
+        public string guid { get; set; }
         string name { get; set; }
         string filePath { get; set; }
         RawSecurityDescriptor sd { get; set; }
