@@ -18,33 +18,34 @@ namespace trout.util
 {
     class PermissionsUtils
     {
+        // Container class that contains results from various PermissionsUtils functions
         public class WritePermissionInfo
         {
             public string Path { get; set; }
             public List<string> UsersWithWriteAccess { get; set; } = new List<string>();
         }
 
+        // Function to output a Security Descriptor Definition Language (SDDL) string in a human readable format
         public static string DecodeAccessMask(int accessMask)
         {
-            Dictionary<int, string> rights = new Dictionary<int, string>
-        {
-            { (int)ActiveDirectoryRights.CreateChild, "CreateChild (0x1)" },
-            { (int)ActiveDirectoryRights.DeleteChild, "DeleteChild (0x2)" },
-            { (int)ActiveDirectoryRights.ListChildren, "ListChildren (0x4)" },
-            { (int)ActiveDirectoryRights.Self, "WriteSelf (0x8)" },
-            { (int)ActiveDirectoryRights.ReadProperty, "ReadProperty (0x10)" },
-            { (int)ActiveDirectoryRights.WriteProperty, "WriteProperty (0x20)" },
-            { (int)ActiveDirectoryRights.DeleteTree, "DeleteTree (0x40)" },
-            { (int)ActiveDirectoryRights.ListObject, "ListObject (0x80)" },
-            { (int)ActiveDirectoryRights.Delete, "Delete (0x10000)" },
-            { (int)ActiveDirectoryRights.ReadControl, "ReadControl (0x20000)" },
-            { (int)ActiveDirectoryRights.WriteDacl, "WriteDACL (0x40000)" },
-            { (int)ActiveDirectoryRights.WriteOwner, "WriteOwner (0x80000)" },
-            { (int)ActiveDirectoryRights.GenericRead, "GenericRead (0x80000000)" },
-            { (int)ActiveDirectoryRights.GenericWrite, "GenericWrite (0x40000000)" },
-            { (int)ActiveDirectoryRights.GenericExecute, "GenericExecute (0x20000000)" },
-            { (int)ActiveDirectoryRights.GenericAll, "GenericAll (0x10000000)" }
-        };
+            Dictionary<int, string> rights = new Dictionary<int, string> {
+                { (int)ActiveDirectoryRights.CreateChild, "CreateChild (0x1)" },
+                { (int)ActiveDirectoryRights.DeleteChild, "DeleteChild (0x2)" },
+                { (int)ActiveDirectoryRights.ListChildren, "ListChildren (0x4)" },
+                { (int)ActiveDirectoryRights.Self, "WriteSelf (0x8)" },
+                { (int)ActiveDirectoryRights.ReadProperty, "ReadProperty (0x10)" },
+                { (int)ActiveDirectoryRights.WriteProperty, "WriteProperty (0x20)" },
+                { (int)ActiveDirectoryRights.DeleteTree, "DeleteTree (0x40)" },
+                { (int)ActiveDirectoryRights.ListObject, "ListObject (0x80)" },
+                { (int)ActiveDirectoryRights.Delete, "Delete (0x10000)" },
+                { (int)ActiveDirectoryRights.ReadControl, "ReadControl (0x20000)" },
+                { (int)ActiveDirectoryRights.WriteDacl, "WriteDACL (0x40000)" },
+                { (int)ActiveDirectoryRights.WriteOwner, "WriteOwner (0x80000)" },
+                { (int)ActiveDirectoryRights.GenericRead, "GenericRead (0x80000000)" },
+                { (int)ActiveDirectoryRights.GenericWrite, "GenericWrite (0x40000000)" },
+                { (int)ActiveDirectoryRights.GenericExecute, "GenericExecute (0x20000000)" },
+                { (int)ActiveDirectoryRights.GenericAll, "GenericAll (0x10000000)" }
+            };
 
             List<string> grantedRights = new List<string>();
 
@@ -59,7 +60,8 @@ namespace trout.util
             return grantedRights.Count > 0 ? string.Join(", ", grantedRights) : "No Permissions";
         }
 
-        static void processCommonACE(WritePermissionInfo info, CommonAce ace, string securityContextUser)
+        // Function to process a supplied ACE, and determine whether the ACE provides Write privileges for the principal
+        static void processCommonACE(WritePermissionInfo info, CommonAce ace)
         {
             if (ace.AceType == AceType.AccessAllowed)  // Only check allow rules
             {
@@ -71,24 +73,27 @@ namespace trout.util
                 }
                 catch
                 {
-                    principal = sid.ToString();
+                    principal = sid.ToString(); // If this fails, just return the supplied sid value.
                 }
                 int accessMask = ace.AccessMask;
-                //Console.WriteLine($"Principal {principal}");
-                //Console.WriteLine($"AccessMask: 0x{accessMask:X} ({Convert.ToString(accessMask, 2).PadLeft(32, '0')})");
-                //Console.WriteLine("Permissions: " + DecodeAccessMask(accessMask) + "\n");
-
-                if ((ace.AccessMask & ((int)ActiveDirectoryRights.WriteProperty)) != 0)
-                {
-                    info.UsersWithWriteAccess.Add(principal);
-                }
                 
-            }
-        
+                if (AppSettings.IsVerbose)
+                {
+                    Console.WriteLine($"Principal {principal}");
+                    Console.WriteLine($"AccessMask: 0x{accessMask:X} ({Convert.ToString(accessMask, 2).PadLeft(32, '0')})");
+                    Console.WriteLine("Permissions: " + DecodeAccessMask(accessMask) + "\n");
+                }
 
+                if ((ace.AccessMask & ((int)ActiveDirectoryRights.WriteProperty)) != 0)
+                {
+                    info.UsersWithWriteAccess.Add(principal);
+                }
+            }
         }
 
-        static void processObjectAce(WritePermissionInfo info, ObjectAce ace, string securityContextUser)
+        // Function to process a supplied ACE, and determine whether the ACE provides Write privileges for the principal
+        // This feels like code reuse 🤔
+        static void processObjectAce(WritePermissionInfo info, ObjectAce ace)
         {
             if (ace.AceType == AceType.AccessAllowed)  // Only check allow rules
             {
@@ -104,35 +109,36 @@ namespace trout.util
                 }
 
                 int accessMask = ace.AccessMask;
-                //Console.WriteLine($"Principal {principal}");
-                //Console.WriteLine($"AccessMask: 0x{accessMask:X} ({Convert.ToString(accessMask, 2).PadLeft(32, '0')})");
-                //Console.WriteLine("Permissions: " + DecodeAccessMask(accessMask) + "\n");
+
+                if (AppSettings.IsVerbose)
+                {
+                    Console.WriteLine($"Principal {principal}");
+                    Console.WriteLine($"AccessMask: 0x{accessMask:X} ({Convert.ToString(accessMask, 2).PadLeft(32, '0')})");
+                    Console.WriteLine("Permissions: " + DecodeAccessMask(accessMask) + "\n");
+                }
 
                 if ((ace.AccessMask & ((int)ActiveDirectoryRights.WriteProperty)) != 0)
                 {
                     info.UsersWithWriteAccess.Add(principal);
                 }
             }
-
-
         }
 
+        // Function that returns all principals with write for the specified SDDL
         public static WritePermissionInfo GetADObjectWritePermissions(RawSecurityDescriptor rawSD, NetworkCredential credentials)
         {
             WritePermissionInfo info = new WritePermissionInfo();
-
-            string securityContextUser = $"{credentials.Domain}\\{credentials.UserName}";
 
 
             foreach (GenericAce ace in rawSD.DiscretionaryAcl)
             {
                 if (ace is ObjectAce objectAce)
                 {
-                    processObjectAce(info, objectAce, securityContextUser);
+                    processObjectAce(info, objectAce);
                 }
                 else if (ace is CommonAce commonAce)
                 {
-                    processCommonACE(info, commonAce, securityContextUser);
+                    processCommonACE(info, commonAce);
                 }
 
             }
@@ -140,12 +146,10 @@ namespace trout.util
             return info;
         }
 
+        // Function that determines the write permissions for the GPOs backing store (SYSVOL)
         public static WritePermissionInfo GetBackingStoreWritePermissions(string path, NetworkCredential credentials)
         {
             WritePermissionInfo info = new WritePermissionInfo { Path = path };
-
-            // Get identity string (DOMAIN\username)
-            string securityContextUser = $"{credentials.Domain}\\{credentials.UserName}";
 
             try
             {
@@ -162,7 +166,6 @@ namespace trout.util
                     {
                         string principal = rule.IdentityReference.Value;
                         info.UsersWithWriteAccess.Add(principal);
-
                     }
                 }
             }
@@ -178,14 +181,18 @@ namespace trout.util
             return info;
         
         }
+
+        // Function to determine whether the specified principalName matches the provided userDistinguishedName
         private static bool IsUserThePrincipal(string userDistinguishedName, string principalName)
         {
             // For common principals (like "NT AUTHORITY\SYSTEM" or SID), check if the user is the same
             return userDistinguishedName.Equals(principalName, StringComparison.OrdinalIgnoreCase);
         }
 
+        // Check whether the ADObject is a member of the specified principal (e.g. whether the provided object is a member of a domain group)
         public static bool CheckPrincipal(string domain, ADObject obj, SecurityPrincipal principal)
         {
+            // e.g. Domain Users, Domain Computers, Custom Domain Group, etc
             if (principal.IsDomainPrincipal)
             {
                 if (IsUserThePrincipal(obj.sid, principal.name))
@@ -199,15 +206,17 @@ namespace trout.util
             }
             else
             {
+                // Authenticated Users, Everyone, etc.
                 return IsInCommonPrincipal(obj, principal.name);
             }
         }
 
-        // Method 1: Check domain group membership recursively
+        // Check whether the ADObject is in a domain group, or nested domain group (recursion)
         private static bool IsObjInDomainGroup(string domain, ADObject obj, string groupIdentifier)
         {
             try
             {
+                // Speed up resolution when the groupIdentifier is for Domain Users or Domain Computers
                 if (obj is Computer)
                 {
                     string reDomainComputers = @"^S-1-5-21-\d{1,}-\d{1,}-\d{1,}-515";
@@ -219,9 +228,9 @@ namespace trout.util
                     if (Regex.IsMatch(groupIdentifier, reDomainUsers)) { return true; } // If the groupIdentifier is the SID for the Domain Users group, we can assume that the user is in the Domain Users group.
                 }
                
-
                 using (PrincipalContext context = new PrincipalContext(ContextType.Domain, domain))
                 {
+                    // Retrieve the User from AD (also handles computers as they're a type of user (computer account))
                     UserPrincipal user = UserPrincipal.FindByIdentity(context, IdentityType.DistinguishedName, obj.distinguishedName);
 
                     if (user == null)
@@ -229,15 +238,22 @@ namespace trout.util
 
                     GroupPrincipal group = null;
 
-                    // Check if the group is specified as a GUID
+                    // Try find group by GUID
                     if (Guid.TryParse(groupIdentifier, out _))
                         group = GroupPrincipal.FindByIdentity(context, IdentityType.Guid, groupIdentifier);
+                    // Try find group by SID (e.g. S-1-5-domain-513)
+                    else if (IsValidSid(groupIdentifier))
+                    {
+                        group = GroupPrincipal.FindByIdentity(context, IdentityType.Sid, groupIdentifier);
+                    }
+                    // Else, try find the group by DistinguishedName
                     else
                         group = GroupPrincipal.FindByIdentity(context, IdentityType.DistinguishedName, groupIdentifier);
 
                     if (group == null)
                         return false;
 
+                    // Checks whether the ADObject is a member of the group (contains base case and recursive call)
                     return IsMemberOfGroupRecursive(user, group);
                 }
             }
@@ -247,7 +263,21 @@ namespace trout.util
                 return false;
             }
         }
+        // Helper method to check if the identifier is a valid SID
+        static bool IsValidSid(string sidString)
+        {
+            try
+            {
+                new SecurityIdentifier(sidString);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
+        // Handles determining if a user is a member of a group with recursion (Todo: Test)
         private static bool IsMemberOfGroupRecursive(Principal user, GroupPrincipal group)
         {
             if (group.Members.Contains(user))
@@ -262,7 +292,7 @@ namespace trout.util
             return false;
         }
 
-        // Method 2: Check if user belongs to a common principal
+        // Function to determine if user belongs to a common principal
         private static bool IsInCommonPrincipal(ADObject obj, string commonPrincipal)
         {
             return commonPrincipal.Contains("Authenticated Users")

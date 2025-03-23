@@ -21,7 +21,9 @@ namespace trout
         {
             Console.WriteLine("Invalid command. Usage: detect | exploit | cleanup");
             Console.WriteLine("Options:");
-            Console.WriteLine("  -v, --verbose    Enable verbose output for more detailed information.");
+            Console.WriteLine("  -v    Enable verbose output for more detailed information.");
+            Console.WriteLine("  -s    Used with the detect command flag to determine whether GPOs are exploitable from the specified principal.");
+
         }
 
         static void Main(string[] args)
@@ -29,14 +31,16 @@ namespace trout
             string domain = string.Empty;
             string username = string.Empty;
             string password = string.Empty;
+            string userSppliedPrincipal = string.Empty;
 
-            // Parse arguments for domain (-d), username (-u), and password (-p)
+            // Parse command line arguments
             if (args.Length > 0)
             {
                 // Check if user supplied domain, username, or password options
                 domain = GetArgumentValue(args, "-d") ?? domain;
                 username = GetArgumentValue(args, "-u") ?? string.Empty;
                 password = GetArgumentValue(args, "-p") ?? string.Empty;
+                userSppliedPrincipal = GetArgumentValue(args, "-s") ?? string.Empty;
                 AppSettings.IsVerbose = IsFlagPresent(args, "-v");
             }
 
@@ -51,7 +55,7 @@ namespace trout
             switch (command)
             {
                 case "detect":
-                    HandleDetect(domain, username, password);
+                    HandleDetect(domain, username, password, userSppliedPrincipal);
                     break;
 
                 case "exploit":
@@ -89,6 +93,7 @@ namespace trout
             return null;
         }
 
+        // Get whether a flag argument is present
         static bool IsFlagPresent(string[] args, string flag)
         {
                 return Array.Exists(args, arg => arg.Equals(flag, StringComparison.OrdinalIgnoreCase));
@@ -96,7 +101,7 @@ namespace trout
         
 
         // Handle detect command
-        static void HandleDetect(string domain, string username, string password)
+        static void HandleDetect(string domain, string username, string password, string userSuppliedPrincipal)
         {
             Console.WriteLine("Running detection...");
 
@@ -104,34 +109,35 @@ namespace trout
 
             bool impersonate = false;
 
+            // If a username or password is not specified, use the applications current context
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 credentials = CredentialCache.DefaultNetworkCredentials; // Use current Windows user
-
-                
             }
+            // Else, create a new NetworkCredential using the specified information
             else
             {
                 credentials = new NetworkCredential(username, password, domain);
                 impersonate = true;
             }
 
+            // Set the Domain attribute for the credentials object to the user specified domain (if present) or the FQDN for the computer's domain
             credentials.Domain = string.IsNullOrEmpty(domain) ? getFQDN() : domain;
 
+            // Invoke ImpersonateUser function when the user supplied credentials to the application
             if (impersonate)
             {
                 using (WindowsImpersonationContext impersonationContext = Impersonation.ImpersonateUser(credentials))
                 {
-                    Detect.invoke(credentials);
+                    Detect.invoke(credentials, userSuppliedPrincipal);
                 }
 
             }
             else
             {
-                Detect.invoke(credentials);
+                Detect.invoke(credentials, userSuppliedPrincipal);
 
             }
-            
         }
 
         // Handle exploit command

@@ -13,30 +13,46 @@ namespace trout.factories
 {
     public static class GPOFactory
     {
-        // Factory method to create GPO object
+        // Factory method to create a GPO object
         public static GPO CreateGPO(string gpoDir, string domain)
         {
             // Extract the GPO GUID (folder name)
             string gpoGuid = Path.GetFileName(gpoDir);
             
-            if (checkGPTFile(gpoDir)) {
+            // If the path contains a "gpt.ini" file
+            if (FSUtils.checkGPTFile(gpoDir)) {
+
+                // Retrieve the AD object associated with the GPO directory from AD via LDAP
                 SearchResult gpoObject = LDAPUtils.GetADGPOObject(gpoGuid, domain);
 
                 if (gpoObject != null)
                 {
                     string displayName = getDisplayName(gpoObject);
+                    if (displayName == "")
+                    {
+                        throw new ArgumentException($"Invalid displayName for the ${gpoGuid} GPO.");
+                    }
+
                     RawSecurityDescriptor SDDL = getSDDL(gpoObject);
+                    if (SDDL == null)
+                    {
+                        throw new ArgumentException($"Invalid SDDL for the ${displayName} GPO.");
+                    }
+                    
                     int version = getVersion(gpoObject);
+                    if (version == -1)
+                    {
+                        throw new ArgumentException($"Invalid version number for the ${displayName} GPO.");
+                    }
 
                     List<OU> linkedOUs = LDAPUtils.getLinkedOUs(gpoGuid, domain);
 
-                    // Return a new GPO object
+                    // Create and return a new GPO object
                     return new GPO(gpoGuid, gpoDir, displayName, SDDL, version, linkedOUs);
                 }
                 else
                 {
                     throw new ArgumentException("Invalid AD object.");
-
                 }
 
             }
@@ -47,7 +63,7 @@ namespace trout.factories
             
         }
 
-
+        // Retrieves GPO version number from search result
         private static int getVersion(SearchResult gpoObject)
         {
             if (gpoObject.Properties["versionNumber"] != null && gpoObject.Properties["versionNumber"].Count > 0)
@@ -57,9 +73,11 @@ namespace trout.factories
             }
             else
             {
-                return -1;
+                return -1; // could not resolve version number
             }
         }
+
+        // Retrieves GPO SDDL from search result
         private static RawSecurityDescriptor getSDDL(SearchResult gpoObject)
         {
             if (gpoObject.Properties["nTSecurityDescriptor"] != null && gpoObject.Properties["nTSecurityDescriptor"].Count > 0)
@@ -69,10 +87,11 @@ namespace trout.factories
             }
             else
             {
-                return null;
+                return null; // could not resolve SDDL
             }
         }
 
+        // 
         private static String getDisplayName(SearchResult gpoObject) {
             if (gpoObject.Properties["displayName"] != null && gpoObject.Properties["displayName"].Count > 0)
             {
@@ -80,24 +99,13 @@ namespace trout.factories
             }
             else
             {
-                return "GPO Name not found.";
+                return ""; // could not resolve display name
             }
         }
 
 
 
-        private static bool checkGPTFile(string gpoDirectory)
-        {
-            string gptIniPath = Path.Combine(gpoDirectory, "gpt.ini");
-
-            if (File.Exists(gptIniPath))
-            {
-                return true;
-
-            }
-
-            return false;
-        }
+        
 
 
     }

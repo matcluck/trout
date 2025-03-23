@@ -27,6 +27,7 @@ namespace trout.models
         public List<OU> linkedOUs {  get; set; }
         public bool linkedToAtleastOneOU {  get; set; }
         
+        // Override the default ToString() method with a custom implementation
         override public string ToString()
         {
             return $"{name}";
@@ -45,6 +46,7 @@ namespace trout.models
             this.linkedOUs = linkedOUs;
         }
 
+        // Returns a list of users contained within linked OUs
         public List<User> getLinkedUsers()
         {
             List<User> results = new List<User>();
@@ -57,6 +59,7 @@ namespace trout.models
             return results;
         }
 
+        // Returns a list of computers contained within linked OUs
         public List<Computer> getLinkedComputers()
         {
             List<Computer> results = new List<Computer>();
@@ -69,12 +72,7 @@ namespace trout.models
             return results;
         }
 
-        public void checkGPOLinks(NetworkCredential credentials)
-        {
-
-        }
-
-
+        // Populates the addModifyGPOObject list with a set of principals that can modify the GPO's AD object
         public void checkGPOObjectPrincipals(NetworkCredential credentials)
         {
             WritePermissionInfo writePermissionsInfo = PermissionsUtils.GetADObjectWritePermissions(this.sd, credentials);
@@ -86,6 +84,7 @@ namespace trout.models
 
         }
 
+        // Populates the addModifyGPOStore list with a set of principals that can modify the GPO's backing store
         public void checkGPOStorePrincipals(NetworkCredential credentials)
         {
             WritePermissionInfo writePermissionsInfo = PermissionsUtils.GetBackingStoreWritePermissions(this.filePath, credentials);
@@ -96,14 +95,16 @@ namespace trout.models
             }
         }
 
+        // Populates the linkedToAtLeastOneOU boolean
         public void checkLinkedtoOUs()
         {
             this.linkedToAtleastOneOU = this.linkedOUs.Count > 0;
         }
 
+        // Populates the securityFilterTargetPrincipals list with principals that the GPO targets
         public void checkSecurityFilterTargetPrincipals()
         {
-            Guid APPLY_GROUP_POLICY_GUID = new Guid("edacfd8f-ffb3-11d1-b41d-00a0c968f939");
+            Guid APPLY_GROUP_POLICY_GUID = new Guid("edacfd8f-ffb3-11d1-b41d-00a0c968f939"); // Apply-Group-Policy extended right
             foreach (GenericAce ace in sd.DiscretionaryAcl)
             {
                 if (ace is ObjectAce objAce) // Check if it's an ObjectAce
@@ -115,27 +116,26 @@ namespace trout.models
                         try
                         {
                             principal = sid.Translate(typeof(NTAccount)).ToString();
-
                         }
                         catch
                         {
-                            principal = sid.ToString();
+                            principal = sid.ToString(); // Adds the specified sid value if it cannot be translated to an AD object
                         }
-                        this.securityFilterTargetPrincipals.Add(new SecurityPrincipal(principal));
+                        this.addSecurityFilterTarget(principal);
                     }
                 }
             }
         }
 
-        public void addModifyGPOObject(string principal) {
+        private void addModifyGPOObject(string principal) {
             this.modifyGPOObjectPrincipals.Add(new SecurityPrincipal(principal));
         }
 
-        public void addModifyGPOStore(string principal) { 
+        private void addModifyGPOStore(string principal) { 
             this.modifyGPOStorePrincipals.Add(new SecurityPrincipal(principal));
         }
 
-        public void addSecurityFilterTarget(string principal)
+        private void addSecurityFilterTarget(string principal)
         {
             this.securityFilterTargetPrincipals.Add(new SecurityPrincipal(principal));
         }

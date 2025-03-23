@@ -11,8 +11,6 @@ namespace trout.util
     {
         public static string GetLDAPFormattedDomainName(string domain)
         {
-            // Get the current domain using Active Directory
-
             // Split the domain name into parts and convert it into the required LDAP format
             string[] domainParts = domain.Split('.');
             string ldapDomain = string.Join(",", domainParts.Select(part => $"DC={part}"));

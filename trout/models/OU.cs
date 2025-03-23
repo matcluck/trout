@@ -18,6 +18,7 @@ namespace trout.models
         {
             this.distinguishedName = distinguishedName;
             this.domain = domain;
+
             // instantiate empty lists
             this.childUsers = new List<User>();
             this.childComputers = new List<Computer>();
